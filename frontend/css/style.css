@@ -1,0 +1,227 @@
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: dark;
+  --bg: #070709;
+  --surface: #111116;
+  --surface2: #18181f;
+  --text: #fff;
+  --muted: #a6a6b2;
+  --accent: #e50914;
+  --border: rgba(255,255,255,.08);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(229,9,20,.16), transparent 32%),
+    var(--bg);
+  color: var(--text);
+  font-family: Inter, Arial, Helvetica, sans-serif;
+}
+
+a { color: inherit; text-decoration: none; }
+
+.navbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 0 5%;
+  background: rgba(7,7,9,.82);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--accent);
+}
+
+.navbar nav {
+  display: flex;
+  gap: 20px;
+  color: var(--muted);
+}
+
+.navbar nav a:hover { color: white; }
+
+.search { margin-left: auto; }
+
+.search input {
+  width: 230px;
+  padding: 11px 15px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  outline: none;
+  background: rgba(255,255,255,.06);
+  color: white;
+}
+
+.hero {
+  min-height: 570px;
+  display: flex;
+  align-items: center;
+  padding: 80px 7%;
+  background:
+    linear-gradient(90deg, #070709 0%, rgba(7,7,9,.9) 35%, rgba(7,7,9,.25) 75%, #070709 100%);
+}
+
+.hero-content { max-width: 650px; }
+
+.badge {
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 3px;
+}
+
+.hero h1 {
+  margin: 16px 0;
+  font-size: clamp(46px, 7vw, 88px);
+  line-height: .95;
+}
+
+.hero p {
+  max-width: 550px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.primary-button {
+  display: inline-block;
+  padding: 14px 24px;
+  border-radius: 8px;
+  background: white;
+  color: black;
+  font-weight: 800;
+}
+
+.section { padding: 30px 5% 70px; }
+
+.section-header { margin-bottom: 22px; }
+
+.section h2 { font-size: 28px; }
+
+.video-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 20px;
+}
+
+.video-card {
+  cursor: pointer;
+  transition: transform .25s ease;
+}
+
+.video-card:hover { transform: translateY(-7px); }
+
+.poster {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #19191f, #30303a);
+  border: 1px solid var(--border);
+}
+
+.poster-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 38px;
+  background: radial-gradient(circle, rgba(229,9,20,.3), transparent 65%);
+}
+
+.duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  background: rgba(0,0,0,.75);
+  font-size: 12px;
+}
+
+.video-info h3 {
+  margin: 10px 0 5px;
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.video-info p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.loading, .empty {
+  padding: 60px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.watch-page {
+  width: min(1200px, 92%);
+  margin: 35px auto 80px;
+}
+
+.player-wrapper {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #000;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.player-message {
+  max-width: 600px;
+  padding: 30px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.player-icon {
+  font-size: 60px;
+  color: var(--accent);
+}
+
+.video-details { padding: 25px 5px; }
+
+.video-details h1 { font-size: 34px; }
+
+.video-details p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+footer {
+  padding: 30px 5%;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 700px) {
+  .navbar { gap: 15px; }
+  .navbar nav { display: none; }
+  .search input { width: 140px; }
+  .hero { min-height: 500px; padding: 60px 6%; }
+  .video-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+}
