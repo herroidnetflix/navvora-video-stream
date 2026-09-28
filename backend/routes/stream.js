@@ -14,7 +14,6 @@ const CHUNK_SIZE = 1024 * 1024; // 1 MB
 
 
 function parseRange(range, fileSize) {
-
   if (!range) {
     return {
       start: 0,
@@ -25,52 +24,40 @@ function parseRange(range, fileSize) {
     };
   }
 
-  const match =
-    range.match(
-      /bytes=(\d*)-(\d*)/
-    );
+  const match = range.match(
+    /bytes=(\d*)-(\d*)/
+  );
 
   if (!match) {
     return null;
   }
 
   let start;
-
   let end;
 
-
   if (match[1] !== "") {
-
-    start =
-      Number(match[1]);
-
+    start = Number(match[1]);
   } else {
+    const suffix = Number(match[2]);
 
-    const suffix =
-      Number(match[2]);
+    if (!Number.isFinite(suffix) || suffix <= 0) {
+      return null;
+    }
 
-    start =
-      Math.max(
-        0,
-        fileSize - suffix
-      );
+    start = Math.max(
+      0,
+      fileSize - suffix
+    );
   }
-
 
   if (match[2] !== "") {
-
-    end =
-      Number(match[2]);
-
+    end = Number(match[2]);
   } else {
-
-    end =
-      Math.min(
-        start + CHUNK_SIZE - 1,
-        fileSize - 1
-      );
+    end = Math.min(
+      start + CHUNK_SIZE - 1,
+      fileSize - 1
+    );
   }
-
 
   if (
     !Number.isFinite(start) ||
@@ -82,13 +69,10 @@ function parseRange(range, fileSize) {
     return null;
   }
 
-
-  end =
-    Math.min(
-      end,
-      fileSize - 1
-    );
-
+  end = Math.min(
+    end,
+    fileSize - 1
+  );
 
   return {
     start,
@@ -98,52 +82,47 @@ function parseRange(range, fileSize) {
 
 
 /*
- * Download a portion of the Telegram file
- * using MTProto upload.getFile.
+ * Download a specific byte range
+ * from Telegram through MTProto.
  */
 async function downloadTelegramRange(
   video,
   start,
   end
 ) {
+  const client = getTelegramClient();
 
-  const client =
-    getTelegramClient();
+  const documentId = BigInt(
+    video.telegramDocumentId
+  );
 
+  const accessHash = BigInt(
+    video.telegramAccessHash
+  );
 
-  const documentId =
-    BigInt(
-      video.telegramDocumentId
-    );
-
-
-  const accessHash =
-    BigInt(
-      video.telegramAccessHash
-    );
-
-
-  const fileReference =
-    Buffer.from(
-      video.telegramFileReference,
-      "base64"
-    );
+  const fileReference = Buffer.from(
+    video.telegramFileReference,
+    "base64"
+  );
 
 
   /*
-   * Telegram document location.
+   * InputDocumentFileLocation
+   *
+   * thumbSize is required by the
+   * GramJS version currently installed.
    */
   const location =
     new Api.InputDocumentFileLocation({
       id: documentId,
       accessHash: accessHash,
-      fileReference: fileReference
+      fileReference: fileReference,
+      thumbSize: ""
     });
 
 
   const requestedLength =
     end - start + 1;
-
 
   const chunks = [];
 
@@ -153,18 +132,14 @@ async function downloadTelegramRange(
   while (
     downloaded < requestedLength
   ) {
-
     const remaining =
-      requestedLength -
-      downloaded;
-
+      requestedLength - downloaded;
 
     const requestSize =
       Math.min(
         CHUNK_SIZE,
         remaining
       );
-
 
     const offset =
       start + downloaded;
@@ -175,24 +150,12 @@ async function downloadTelegramRange(
     );
 
 
-    /*
-     * IMPORTANT:
-     *
-     * GramJS expects the fields
-     * explicitly.
-     */
     const result =
       await client.invoke(
         new Api.upload.GetFile({
           location: location,
-
-          offset: BigInt(
-            offset
-          ),
-
-          limit:
-            requestSize,
-
+          offset: BigInt(offset),
+          limit: requestSize,
           precise: false
         })
       );
@@ -202,7 +165,6 @@ async function downloadTelegramRange(
       !result ||
       !result.bytes
     ) {
-
       throw new Error(
         "Telegram returned no file data."
       );
@@ -210,46 +172,34 @@ async function downloadTelegramRange(
 
 
     const buffer =
-      Buffer.from(
-        result.bytes
-      );
+      Buffer.from(result.bytes);
 
 
-    if (
-      buffer.length === 0
-    ) {
-
+    if (buffer.length === 0) {
       throw new Error(
         "Telegram returned an empty chunk."
       );
     }
 
 
-    chunks.push(
-      buffer
-    );
+    chunks.push(buffer);
 
-
-    downloaded +=
-      buffer.length;
+    downloaded += buffer.length;
 
 
     /*
-     * Telegram returned less than
-     * requested. Stop this request.
+     * Stop if Telegram returned
+     * less data than requested.
      */
     if (
-      buffer.length <
-      requestSize
+      buffer.length < requestSize
     ) {
       break;
     }
   }
 
 
-  return Buffer.concat(
-    chunks
-  );
+  return Buffer.concat(chunks);
 }
 
 
@@ -259,7 +209,6 @@ async function downloadTelegramRange(
 router.get(
   "/:id",
   async (req, res) => {
-
     try {
 
       const video =
@@ -269,7 +218,6 @@ router.get(
 
 
       if (!video) {
-
         return res
           .status(404)
           .send(
@@ -279,14 +227,14 @@ router.get(
 
 
       /*
-       * Check MTProto information.
+       * The video must have been
+       * processed by the updated bot.
        */
       if (
         !video.telegramDocumentId ||
         !video.telegramAccessHash ||
         !video.telegramFileReference
       ) {
-
         return res
           .status(400)
           .send(
@@ -296,16 +244,13 @@ router.get(
 
 
       const fileSize =
-        Number(
-          video.fileSize
-        );
+        Number(video.fileSize);
 
 
       if (
         !Number.isFinite(fileSize) ||
         fileSize <= 0
       ) {
-
         return res
           .status(400)
           .send(
@@ -357,9 +302,8 @@ router.get(
 
       if (
         !data ||
-        !data.length
+        data.length === 0
       ) {
-
         throw new Error(
           "No data received from Telegram."
         );
@@ -373,7 +317,7 @@ router.get(
 
 
       /*
-       * Response headers.
+       * HTTP response
        */
 
       res.status(
@@ -386,7 +330,7 @@ router.get(
       res.setHeader(
         "Content-Type",
         video.mimeType ||
-        "video/mp4"
+          "video/mp4"
       );
 
 
@@ -408,15 +352,17 @@ router.get(
       );
 
 
+      /*
+       * Disable caching for now.
+       * This makes debugging easier.
+       */
       res.setHeader(
         "Cache-Control",
         "no-store"
       );
 
 
-      res.end(
-        data
-      );
+      res.end(data);
 
     } catch (error) {
 
@@ -426,10 +372,7 @@ router.get(
       );
 
 
-      if (
-        !res.headersSent
-      ) {
-
+      if (!res.headersSent) {
         res
           .status(500)
           .send(
@@ -441,5 +384,4 @@ router.get(
 );
 
 
-module.exports =
-  router;
+module.exports = router;
