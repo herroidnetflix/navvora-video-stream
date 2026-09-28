@@ -12,7 +12,9 @@ const router = express.Router();
 
 const CHUNK_SIZE = 1024 * 1024; // 1 MB
 
+
 function parseRange(range, fileSize) {
+
   if (!range) {
     return {
       start: 0,
@@ -24,28 +26,55 @@ function parseRange(range, fileSize) {
   }
 
   const match =
-    range.match(/bytes=(\d*)-(\d*)/);
+    range.match(
+      /bytes=(\d*)-(\d*)/
+    );
 
   if (!match) {
     return null;
   }
 
-  let start =
-    match[1] !== ""
-      ? Number(match[1])
-      : fileSize - Number(match[2]);
+  let start;
 
-  let end =
-    match[2] !== ""
-      ? Number(match[2])
-      : Math.min(
-          start + CHUNK_SIZE - 1,
-          fileSize - 1
-        );
+  let end;
+
+
+  if (match[1] !== "") {
+
+    start =
+      Number(match[1]);
+
+  } else {
+
+    const suffix =
+      Number(match[2]);
+
+    start =
+      Math.max(
+        0,
+        fileSize - suffix
+      );
+  }
+
+
+  if (match[2] !== "") {
+
+    end =
+      Number(match[2]);
+
+  } else {
+
+    end =
+      Math.min(
+        start + CHUNK_SIZE - 1,
+        fileSize - 1
+      );
+  }
+
 
   if (
-    Number.isNaN(start) ||
-    Number.isNaN(end) ||
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
     start < 0 ||
     end < start ||
     start >= fileSize
@@ -53,10 +82,13 @@ function parseRange(range, fileSize) {
     return null;
   }
 
-  end = Math.min(
-    end,
-    fileSize - 1
-  );
+
+  end =
+    Math.min(
+      end,
+      fileSize - 1
+    );
+
 
   return {
     start,
@@ -64,19 +96,32 @@ function parseRange(range, fileSize) {
   };
 }
 
+
+/*
+ * Download a portion of the Telegram file
+ * using MTProto upload.getFile.
+ */
 async function downloadTelegramRange(
   video,
   start,
   end
 ) {
+
   const client =
     getTelegramClient();
 
+
   const documentId =
-    BigInt(video.telegramDocumentId);
+    BigInt(
+      video.telegramDocumentId
+    );
+
 
   const accessHash =
-    BigInt(video.telegramAccessHash);
+    BigInt(
+      video.telegramAccessHash
+    );
+
 
   const fileReference =
     Buffer.from(
@@ -84,25 +129,35 @@ async function downloadTelegramRange(
       "base64"
     );
 
+
+  /*
+   * Telegram document location.
+   */
   const location =
     new Api.InputDocumentFileLocation({
       id: documentId,
-      accessHash,
-      fileReference
+      accessHash: accessHash,
+      fileReference: fileReference
     });
+
 
   const requestedLength =
     end - start + 1;
+
 
   const chunks = [];
 
   let downloaded = 0;
 
+
   while (
     downloaded < requestedLength
   ) {
+
     const remaining =
-      requestedLength - downloaded;
+      requestedLength -
+      downloaded;
+
 
     const requestSize =
       Math.min(
@@ -110,41 +165,79 @@ async function downloadTelegramRange(
         remaining
       );
 
+
     const offset =
       start + downloaded;
 
+
+    console.log(
+      `Telegram chunk: offset=${offset}, limit=${requestSize}`
+    );
+
+
+    /*
+     * IMPORTANT:
+     *
+     * GramJS expects the fields
+     * explicitly.
+     */
     const result =
       await client.invoke(
         new Api.upload.GetFile({
-          location,
-          offset: BigInt(offset),
-          limit: requestSize
+          location: location,
+
+          offset: BigInt(
+            offset
+          ),
+
+          limit:
+            requestSize,
+
+          precise: false
         })
       );
+
 
     if (
       !result ||
       !result.bytes
     ) {
+
       throw new Error(
         "Telegram returned no file data."
       );
     }
 
-    const buffer =
-      Buffer.from(result.bytes);
 
-    if (!buffer.length) {
+    const buffer =
+      Buffer.from(
+        result.bytes
+      );
+
+
+    if (
+      buffer.length === 0
+    ) {
+
       throw new Error(
         "Telegram returned an empty chunk."
       );
     }
 
-    chunks.push(buffer);
+
+    chunks.push(
+      buffer
+    );
+
 
     downloaded +=
       buffer.length;
 
+
+    /*
+     * Telegram returned less than
+     * requested. Stop this request.
+     */
     if (
       buffer.length <
       requestSize
@@ -153,29 +246,47 @@ async function downloadTelegramRange(
     }
   }
 
-  return Buffer.concat(chunks);
+
+  return Buffer.concat(
+    chunks
+  );
 }
 
+
+/*
+ * GET /api/stream/:id
+ */
 router.get(
   "/:id",
   async (req, res) => {
+
     try {
+
       const video =
         await Video.findById(
           req.params.id
         );
 
+
       if (!video) {
+
         return res
           .status(404)
-          .send("Video not found.");
+          .send(
+            "Video not found."
+          );
       }
 
+
+      /*
+       * Check MTProto information.
+       */
       if (
         !video.telegramDocumentId ||
         !video.telegramAccessHash ||
         !video.telegramFileReference
       ) {
+
         return res
           .status(400)
           .send(
@@ -183,13 +294,18 @@ router.get(
           );
       }
 
+
       const fileSize =
-        Number(video.fileSize);
+        Number(
+          video.fileSize
+        );
+
 
       if (
-        !fileSize ||
+        !Number.isFinite(fileSize) ||
         fileSize <= 0
       ) {
+
         return res
           .status(400)
           .send(
@@ -197,13 +313,16 @@ router.get(
           );
       }
 
+
       const range =
         parseRange(
           req.headers.range,
           fileSize
         );
 
+
       if (!range) {
+
         res.setHeader(
           "Content-Range",
           `bytes */${fileSize}`
@@ -216,14 +335,17 @@ router.get(
           );
       }
 
+
       const {
         start,
         end
       } = range;
 
+
       console.log(
         `Streaming ${video.title}: ${start}-${end}/${fileSize}`
       );
+
 
       const data =
         await downloadTelegramRange(
@@ -232,10 +354,27 @@ router.get(
           end
         );
 
+
+      if (
+        !data ||
+        !data.length
+      ) {
+
+        throw new Error(
+          "No data received from Telegram."
+        );
+      }
+
+
       const actualEnd =
         start +
         data.length -
         1;
+
+
+      /*
+       * Response headers.
+       */
 
       res.status(
         req.headers.range
@@ -243,47 +382,54 @@ router.get(
           : 200
       );
 
+
       res.setHeader(
         "Content-Type",
         video.mimeType ||
-          "video/mp4"
+        "video/mp4"
       );
+
 
       res.setHeader(
         "Accept-Ranges",
         "bytes"
       );
 
+
       res.setHeader(
         "Content-Length",
         data.length
       );
 
-      if (
-        req.headers.range
-      ) {
-        res.setHeader(
-          "Content-Range",
-          `bytes ${start}-${actualEnd}/${fileSize}`
-        );
-      }
+
+      res.setHeader(
+        "Content-Range",
+        `bytes ${start}-${actualEnd}/${fileSize}`
+      );
+
 
       res.setHeader(
         "Cache-Control",
         "no-store"
       );
 
-      res.end(data);
+
+      res.end(
+        data
+      );
 
     } catch (error) {
+
       console.error(
         "Telegram streaming error:",
         error
       );
 
+
       if (
         !res.headersSent
       ) {
+
         res
           .status(500)
           .send(
@@ -294,4 +440,6 @@ router.get(
   }
 );
 
-module.exports = router;
+
+module.exports =
+  router;
