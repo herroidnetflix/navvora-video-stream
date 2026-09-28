@@ -1,5 +1,5 @@
-const { TelegramClient } = require("gramjs");
-const { StringSession } = require("gramjs/sessions");
+const { TelegramClient } = require("telegram");
+const { StringSession } = require("telegram/sessions");
 
 let client = null;
 
@@ -33,7 +33,9 @@ async function startTelegramClient() {
     botAuthToken: botToken
   });
 
-  console.log("Telegram MTProto client connected.");
+  console.log(
+    "Telegram MTProto client connected."
+  );
 
   return client;
 }
