@@ -7,6 +7,9 @@ const mongoose = require("mongoose");
 const startBot = require("./bot");
 const videoRoutes = require("./routes/videos");
 const streamRoutes = require("./routes/stream");
+const {
+  startTelegramClient
+} = require("./telegramClient");
 
 const app = express();
 
@@ -18,7 +21,10 @@ app.use(
 
 app.use(express.json());
 
-// Health / status
+// -----------------------------
+// Basic API routes
+// -----------------------------
+
 app.get("/", (req, res) => {
   res.json({
     name: "Navvora Video API",
@@ -32,16 +38,27 @@ app.get("/health", (req, res) => {
   });
 });
 
-// Video API
+// -----------------------------
+// Video routes
+// -----------------------------
+
 app.use("/api/videos", videoRoutes);
 
-// Video streaming API
+// -----------------------------
+// Streaming routes
+// -----------------------------
+
 app.use("/api/stream", streamRoutes);
+
+// -----------------------------
+// Start server
+// -----------------------------
 
 const PORT = process.env.PORT || 10000;
 
 async function start() {
   try {
+    // Check required environment variables
     if (!process.env.BOT_TOKEN) {
       throw new Error("BOT_TOKEN is missing");
     }
@@ -50,20 +67,53 @@ async function start() {
       throw new Error("MONGODB_URI is missing");
     }
 
-    // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI);
+    if (!process.env.TELEGRAM_API_ID) {
+      throw new Error("TELEGRAM_API_ID is missing");
+    }
 
-    console.log("MongoDB connected.");
+    if (!process.env.TELEGRAM_API_HASH) {
+      throw new Error("TELEGRAM_API_HASH is missing");
+    }
 
-    // Start Telegram bot
-    startBot(process.env.BOT_TOKEN);
+    // -----------------------------
+    // MongoDB
+    // -----------------------------
 
-    // Start Express server
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(
-        `Navvora Video API running on port ${PORT}`
-      );
-    });
+    await mongoose.connect(
+      process.env.MONGODB_URI
+    );
+
+    console.log(
+      "MongoDB connected."
+    );
+
+    // -----------------------------
+    // Telegram MTProto
+    // -----------------------------
+
+    await startTelegramClient();
+
+    // -----------------------------
+    // Telegram Bot API
+    // -----------------------------
+
+    startBot(
+      process.env.BOT_TOKEN
+    );
+
+    // -----------------------------
+    // Express
+    // -----------------------------
+
+    app.listen(
+      PORT,
+      "0.0.0.0",
+      () => {
+        console.log(
+          `Navvora Video API running on port ${PORT}`
+        );
+      }
+    );
 
   } catch (error) {
     console.error(
