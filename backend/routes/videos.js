@@ -12,7 +12,9 @@ router.get("/", async (req, res) => {
     res.json(videos);
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: "Failed to load videos" });
+    res.status(500).json({
+      error: "Failed to load videos"
+    });
   }
 });
 
@@ -21,12 +23,18 @@ router.get("/:id", async (req, res) => {
     const video = await Video.findById(req.params.id);
 
     if (!video) {
-      return res.status(404).json({ error: "Video not found" });
+      return res.status(404).json({
+        error: "Video not found"
+      });
     }
 
     res.json(video);
   } catch (error) {
-    res.status(500).json({ error: "Failed to load video" });
+    console.error(error);
+
+    res.status(500).json({
+      error: "Failed to load video"
+    });
   }
 });
 
@@ -39,12 +47,20 @@ router.post("/:id/view", async (req, res) => {
     );
 
     if (!video) {
-      return res.status(404).json({ error: "Video not found" });
+      return res.status(404).json({
+        error: "Video not found"
+      });
     }
 
-    res.json({ views: video.views });
+    res.json({
+      views: video.views
+    });
   } catch (error) {
-    res.status(500).json({ error: "Failed to update views" });
+    console.error(error);
+
+    res.status(500).json({
+      error: "Failed to update views"
+    });
   }
 });
 
